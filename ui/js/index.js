@@ -1,56 +1,69 @@
-$(function(){
-    var networks = undefined;
 
-    function showHideFormFields() {
-        var security = $(this).find(':selected').attr('data-security');
-        // start off with all fields hidden
-        $('#identity-group').addClass('hidden');
-        $('#passphrase-group').addClass('hidden');
-        $('#hidden-ssid-group').addClass('hidden');
-        if(security === 'NONE') {
-            return; // nothing to do
+$(function(){
+    var ipsettings = undefined;
+
+    var netmask2CIDR = (netmask) => (netmask.split('.').map(Number)
+      .map(part => (part >>> 0).toString(2))
+      .join('')).split('1').length -1;
+
+    var CIDR2netmask = (bitCount) => {
+        var mask=[];
+        for(var i=0;i<4;i++) {
+            var n = Math.min(bitCount, 8);
+            mask.push(256 - Math.pow(2, 8-n));
+            bitCount -= n;
         }
-        if(security === 'ENTERPRISE') {
-            $('#identity-group').removeClass('hidden');
-            $('#passphrase-group').removeClass('hidden');
-            return;
-        } 
-        if(security === 'HIDDEN') {
-            $('#hidden-ssid-group').removeClass('hidden');
-            // fall through
-        } 
-        // otherwise security is HIDDEN, WEP, WPA, or WPA2 which need password
-        $('#passphrase-group').removeClass('hidden');
+        return mask.join('.');
     }
 
-    $('#ssid-select').change(showHideFormFields);
+    function showHideFormFields() {
+        var mode = $(this).find(':selected').val();
+        // start off with all fields hidden
+        $('#ip-address-group').addClass('hidden');
+        $('#netmask-group').addClass('hidden');
+        $('#gateway-group').addClass('hidden');
+        if(mode === 'auto') {
+            return; // nothing to do
+        }
+        if(mode === 'manual') {
+            $('#ip-address-group').removeClass('hidden');
+            $('#netmask-group').removeClass('hidden');
+            $('#gateway-group').removeClass('hidden');
+            return;
+        } 
+        if(mode === 'local') {
+            return; // nothing to do
+        } 
+    }
 
-    $.get("/networks", function(data){
+    $('#mode-select').change(showHideFormFields);
+
+
+    $.get("/ipsettings", function(data){
         console.log('debugrob data=',data);
         if(data.length === 0){
             $('.before-submit').hide();
-            $('#no-networks-message').removeClass('hidden');
+            $('#no-settings-message').removeClass('hidden');
         } else {
-            networks = JSON.parse(data);
-            $.each(networks, function(i, val){
-                console.log('debugrob val=',val);
-                $('#ssid-select').append(
-                    $('<option>')
-                        .text(val.ssid)
-                        .attr('val', val.ssid)
-                        .attr('data-security', val.security.toUpperCase())
-                );
-            });
-
-            jQuery.proxy(showHideFormFields, $('#ssid-select'))();
+            ipsettings = JSON.parse(data);
+            $('#mode-select').val(ipsettings.method)
+            $('#ip-address').val(ipsettings.addresses[0][0])
+            $('#netmask').val(CIDR2netmask(ipsettings.addresses[0][1]))
+            $('#gateway').val(ipsettings.addresses[0][2])
+            jQuery.proxy(showHideFormFields, $('#mode-select'))();
         }
     });
 
+    //TODO: Validate IP Address and netmask
     $('#connect-form').submit(function(ev){
+        var netmask_text = $('#netmask').val()
+        $('#netmask').val(netmask2CIDR(netmask_text))
         $.post('/connect', $('#connect-form').serialize(), function(data){
             $('.before-submit').hide();
             $('#submit-message').removeClass('hidden');
+            $(location).delay(2000).attr('hostname', $('#ip-address').val());
         });
+        $('#netmask').val(netmask_text)
         ev.preventDefault();
     });
 });
