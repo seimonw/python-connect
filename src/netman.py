@@ -16,6 +16,7 @@ def get_ethernet_settings(dev_name=DEFAULT_DEV_NAME):
             continue
         if dev.ActiveConnection == None:
             continue
+        print(f'GetSettings: {dev.ActiveConnection.Connection.GetSettings()["ipv4"]}')
         return dev.ActiveConnection.Connection.GetSettings()['ipv4']
     return None
 
@@ -32,8 +33,11 @@ def update_ethernet_settings(mode, ipaddress, netmask, gateway, dev_name=DEFAULT
     conn = dev.ActiveConnection.Connection
     settings = conn.GetSettings()
     
+    settings['ipv4']['addresses'] = []  # deprecated
+    settings['ipv4']['address-data'] = []
+    settings['ipv4']['gateway'] = None
+
     if mode == 'manual':
-        settings['ipv4']['addresses'] = []  # deprecated
         settings['ipv4']['address-data'] = [{'address': ipaddress, 'prefix': netmask}]
         settings['ipv4']['gateway'] = gateway
 
