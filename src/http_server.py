@@ -1,6 +1,6 @@
 # Our main wifi-connect application, which is based around an HTTP server.
 
-import os, getopt, sys, json, atexit
+import os, getopt, sys, json, atexit, base64
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 from urllib.parse import parse_qs
 from io import BytesIO
@@ -14,6 +14,7 @@ ADDRESS = ''
 PORT = 80
 UI_PATH = '../ui'
 
+key = ''
 ipsettings = None
 
 #------------------------------------------------------------------------------
@@ -46,27 +47,63 @@ def RequestHandlerClassFactory(simulate, address, interface):
             self.interface = interface
             super(MyHTTPReqHandler, self).__init__(*args, **kwargs)
 
+
+        def do_HEAD(self):
+            print(f'do_HEAD {self.path}')
+            self.send_response(200)
+            self.send_header('Content-type', 'text/html')
+            self.end_headers()
+
+        def do_AUTHHEAD(self):
+            print(f'do_AUTHHEAD {self.path}')
+            self.send_response(401)
+            self.send_header("WWW-Authenticate", 'Basic realm=\"Sabre II BACnet Gateway\"')
+            self.send_header('Content-type', 'text/html')
+            self.end_headers()
+
         # See if this is a specific request, otherwise let the server handle it.
         def do_GET(self):
+            global key
+            global ipsettings
+            response = BytesIO()
 
             print(f'do_GET {self.path}')
 
-            if '/ipsettings' == self.path:
-                self.send_response(200)
-                self.end_headers()
-                response = BytesIO()
-                response.write(json.dumps(ipsettings).encode('utf-8'))
-                print(f'GET {self.path} returning: {response.getvalue()}')
-                self.wfile.write(response.getvalue())
-                return
+            if self.headers['Authorization'] == None:
+                self.do_AUTHHEAD()
+                self.wfile.write(b'No Auth Header received')
 
-            # All other requests are handled by the server which vends files 
-            # from the ui_path we were initialized with.
-            super().do_GET()
+            elif self.headers['Authorization'] == 'Basic '+str(key, 'utf-8'):
+                if '/ipsettings' == self.path:
+                        self.send_response(200)
+                        self.end_headers()
+                        response = BytesIO()
+                        response.write(json.dumps(ipsettings).encode('utf-8'))
+                        print(f'GET {self.path} returning: {response.getvalue()}')
+                        self.wfile.write(response.getvalue())
+                        return
+
+                # All other requests are handled by the server which vends files
+                # from the ui_path we were initialized with.
+                super().do_GET()
+            else:
+                #print(f'{self.headers["Authorization"]} != Basic {str(key, "utf-8")}')
+                self.do_AUTHHEAD()
+                #self.send_header(self.headers['Authorization'])
+                #self.wfile.write(self.headers['Authorization'])
+                self.wfile.write(b'Not Authenticated')
 
 
         # test with: curl localhost:5000 -d "{'name':'value'}"
         def do_POST(self):
+            global key
+            global ipsettings
+
+            if self.headers['Authorization'] == None or self.headers['Authorization'] != 'Basic '+str(key, 'utf-8'):
+                print('POST Not Authenticated')
+                self.send_response(401)
+                return
+
             content_length = int(self.headers['Content-Length'])
             body = self.rfile.read(content_length)
             self.send_response(200)
@@ -121,7 +158,8 @@ def RequestHandlerClassFactory(simulate, address, interface):
 # Create the hotspot, start dnsmasq, start the HTTP server.
 def main(interface, address, port, ui_path, simulate, delete_connections):
 
-    ipsettings = netman.get_ethernet_settings(interface)
+    global key
+    global ipsettings
 
     # Find the ui directory which is up one from where this file is located.
     web_dir = os.path.join(os.path.dirname(__file__), ui_path)
@@ -133,6 +171,8 @@ def main(interface, address, port, ui_path, simulate, delete_connections):
 
     # Host:Port our HTTP server listens on
     server_address = (address, port)
+    key = base64.b64encode(b'remsdaq:remsdaq')
+    ipsettings = netman.get_ethernet_settings(interface)
 
     # Custom request handler class (so we can pass in our own args)
     MyRequestHandlerClass = RequestHandlerClassFactory(simulate, address, interface)
