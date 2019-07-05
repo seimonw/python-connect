@@ -33,7 +33,7 @@ class MyHTTPServer(HTTPServer):
 # A custom http request handler class factory.
 # Handle the GET and POST requests from the UI form and JS.
 # The class factory allows us to pass custom arguments to the handler.
-def RequestHandlerClassFactory(simulate, address, interface, ipsettings):
+def RequestHandlerClassFactory(simulate, address, interface):
 
     class MyHTTPReqHandler(SimpleHTTPRequestHandler):
 
@@ -43,7 +43,6 @@ def RequestHandlerClassFactory(simulate, address, interface, ipsettings):
             self.simulate = simulate
             self.address = address
             self.interface = interface
-            self.ipsettings = ipsettings
             super(MyHTTPReqHandler, self).__init__(*args, **kwargs)
 
         # See if this is a specific request, otherwise let the server handle it.
@@ -55,7 +54,7 @@ def RequestHandlerClassFactory(simulate, address, interface, ipsettings):
                 self.send_response(200)
                 self.end_headers()
                 response = BytesIO()
-                ipsettings = self.ipsettings
+                ipsettings = netman.get_ethernet_settings(interface)
                 response.write(json.dumps(ipsettings).encode('utf-8'))
                 print(f'GET {self.path} returning: {response.getvalue()}')
                 self.wfile.write(response.getvalue())
@@ -103,9 +102,6 @@ def RequestHandlerClassFactory(simulate, address, interface, ipsettings):
 
             if success:
                 response.write(b'OK\n')
-                print(f'Original Settings: {self.ipsettings}\n')
-                self.ipsettings = netman.get_ethernet_settings(interface)
-                print(f'New Settings: {self.ipsettings}\n')
             else:
                 response.write(b'ERROR\n')
             self.wfile.write(response.getvalue())
@@ -128,9 +124,6 @@ def main(interface, address, port, ui_path, simulate, delete_connections):
 #    if delete_connections and not simulate:
 #        netman.delete_all_wifi_connections()
 
-    # Get current ip settings from net man.  
-    ipsettings = netman.get_ethernet_settings(interface)
-
     # Find the ui directory which is up one from where this file is located.
     web_dir = os.path.join(os.path.dirname(__file__), ui_path)
     print(f'HTTP serving directory: {web_dir} on {address}:{port}')
@@ -143,7 +136,7 @@ def main(interface, address, port, ui_path, simulate, delete_connections):
     server_address = (address, port)
 
     # Custom request handler class (so we can pass in our own args)
-    MyRequestHandlerClass = RequestHandlerClassFactory(simulate, address, interface, ipsettings)
+    MyRequestHandlerClass = RequestHandlerClassFactory(simulate, address, interface)
 
     # Start an HTTP server to serve the content in the ui dir and handle the 
     # POST request in the handler class.
