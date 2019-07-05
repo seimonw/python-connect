@@ -14,6 +14,7 @@ ADDRESS = ''
 PORT = 80
 UI_PATH = '../ui'
 
+ipsettings = None
 
 #------------------------------------------------------------------------------
 # called at exit
@@ -54,7 +55,6 @@ def RequestHandlerClassFactory(simulate, address, interface):
                 self.send_response(200)
                 self.end_headers()
                 response = BytesIO()
-                ipsettings = netman.get_ethernet_settings(interface)
                 response.write(json.dumps(ipsettings).encode('utf-8'))
                 print(f'GET {self.path} returning: {response.getvalue()}')
                 self.wfile.write(response.getvalue())
@@ -102,6 +102,7 @@ def RequestHandlerClassFactory(simulate, address, interface):
 
             if success:
                 response.write(b'OK\n')
+                ipsettings = netman.get_ethernet_settings(interface)
             else:
                 response.write(b'ERROR\n')
             self.wfile.write(response.getvalue())
@@ -120,9 +121,7 @@ def RequestHandlerClassFactory(simulate, address, interface):
 # Create the hotspot, start dnsmasq, start the HTTP server.
 def main(interface, address, port, ui_path, simulate, delete_connections):
 
-    # See if caller wants to delete all existing connections first
-#    if delete_connections and not simulate:
-#        netman.delete_all_wifi_connections()
+    ipsettings = netman.get_ethernet_settings(interface)
 
     # Find the ui directory which is up one from where this file is located.
     web_dir = os.path.join(os.path.dirname(__file__), ui_path)
