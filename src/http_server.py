@@ -103,6 +103,7 @@ def RequestHandlerClassFactory(simulate, address, interface, ipsettings):
 
             if success:
                 response.write(b'OK\n')
+                self.ipsettings = netman.get_ethernet_settings(interface)
             else:
                 response.write(b'ERROR\n')
             self.wfile.write(response.getvalue())
