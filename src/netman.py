@@ -35,7 +35,7 @@ def update_ethernet_settings(mode, ipaddress, netmask, gateway, dev_name=DEFAULT
     
     settings['ipv4']['addresses'] = []  # deprecated
     settings['ipv4']['address-data'] = []
-    settings['ipv4']['gateway'] = None
+    settings['ipv4']['gateway'] = ''
 
     if mode == 'manual':
         settings['ipv4']['address-data'] = [{'address': ipaddress, 'prefix': netmask}]
