@@ -10,8 +10,8 @@ import netman
 
 # Defaults
 INTERFACE = 'eth0'
-ADDRESS = '192.168.0.180'
-PORT = 8090
+ADDRESS = ''
+PORT = 80
 UI_PATH = '../ui'
 
 
