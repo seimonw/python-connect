@@ -154,7 +154,6 @@ def RequestHandlerClassFactory(address, interface):
 
     return  MyHTTPReqHandler # the class our factory just created.
 
-
 #------------------------------------------------------------------------------
 # Create the hotspot, start dnsmasq, start the HTTP server.
 def main(interface, address, port, ui_path):
@@ -185,7 +184,7 @@ def main(interface, address, port, ui_path):
 
     # Custom request handler class (so we can pass in our own args)
     MyRequestHandlerClass = RequestHandlerClassFactory(address, interface)
-    avahi = AvahiService("S2B gateway", "_https._tcp", port)
+    avahi = AvahiService("Sabre II BACnet Gateway", "_https._tcp", port)
 
     # Start an HTTP server to serve the content in the ui dir and handle the 
     # POST request in the handler class.
