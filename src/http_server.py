@@ -1,9 +1,10 @@
 # Our main wifi-connect application, which is based around an HTTP server.
 
-import os, getopt, sys, json, atexit, base64
+import os, getopt, sys, json, atexit, base64, ssl
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 from urllib.parse import parse_qs
 from io import BytesIO
+from avahi.service import AvahiService
 
 # Local modules
 import netman
@@ -11,8 +12,9 @@ import netman
 # Defaults
 INTERFACE = 'eth0'
 ADDRESS = ''
-PORT = 80
+PORT = 443
 UI_PATH = '../ui'
+CERTFILE_PATH = "../lighttpd.pem"
 
 key = ''
 ipsettings = None
@@ -35,14 +37,13 @@ class MyHTTPServer(HTTPServer):
 # A custom http request handler class factory.
 # Handle the GET and POST requests from the UI form and JS.
 # The class factory allows us to pass custom arguments to the handler.
-def RequestHandlerClassFactory(simulate, address, interface):
+def RequestHandlerClassFactory(address, interface):
 
     class MyHTTPReqHandler(SimpleHTTPRequestHandler):
 
         def __init__(self, *args, **kwargs):
             # We must set our custom class properties first, since __init__() of
             # our super class will call do_GET().
-            self.simulate = simulate
             self.address = address
             self.interface = interface
             super(MyHTTPReqHandler, self).__init__(*args, **kwargs)
@@ -156,7 +157,7 @@ def RequestHandlerClassFactory(simulate, address, interface):
 
 #------------------------------------------------------------------------------
 # Create the hotspot, start dnsmasq, start the HTTP server.
-def main(interface, address, port, ui_path, simulate, delete_connections):
+def main(interface, address, port, ui_path):
 
     global key
     global ipsettings
@@ -171,15 +172,25 @@ def main(interface, address, port, ui_path, simulate, delete_connections):
 
     # Host:Port our HTTP server listens on
     server_address = (address, port)
-    key = base64.b64encode(b'remsdaq:remsdaq')
+
+    keystr = os.getenv('BALENA_DEVICE_UUID')
+    if keystr == None:
+        print("Error: Can't get Device UUID!")
+        return
+    keystr = keystr[:7] + ':remsdaq'
+    key = base64.b64encode(bytearray(keystr.encode('ascii')))
+
+
     ipsettings = netman.get_ethernet_settings(interface)
 
     # Custom request handler class (so we can pass in our own args)
-    MyRequestHandlerClass = RequestHandlerClassFactory(simulate, address, interface)
+    MyRequestHandlerClass = RequestHandlerClassFactory(address, interface)
+    avahi = AvahiService("S2B gateway", "_https._tcp", port)
 
     # Start an HTTP server to serve the content in the ui dir and handle the 
     # POST request in the handler class.
     httpd = MyHTTPServer(web_dir, server_address, MyRequestHandlerClass)
+    httpd.socket = ssl.wrap_socket(httpd.socket, certfile=CERTFILE_PATH, server_side=True)
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:
@@ -213,8 +224,6 @@ f'  -i <Interface name>          Default: {interface} \n'\
 f'  -a <HTTP server address>     Default: {address} \n'\
 f'  -p <HTTP server port>        Default: {port} \n'\
 f'  -u <UI directory to serve>   Default: "{ui_path}" \n'\
-f'  -d Delete Connections First  Default: {delete_connections} \n'\
-f'  -s Simulate NetworkManager   Default: {simulate} \n'\
 f'  -h Show help.\n'
 
     try:
@@ -227,12 +236,6 @@ f'  -h Show help.\n'
         if opt == '-h':
             print(usage)
             sys.exit()
-
-        elif opt in ("-d"):
-           delete_connections = True
-
-        elif opt in ("-s"):
-            simulate = True
 
         elif opt in ("-i"):
             interface = arg
@@ -250,8 +253,6 @@ f'  -h Show help.\n'
     print(f'Address={address}')
     print(f'Port={port}')
     print(f'UI path={ui_path}')
-    print(f'Simulate={simulate}')
-    print(f'Delete Connections={delete_connections}')
-    main(interface, address, port, ui_path, simulate, delete_connections)
+    main(interface, address, port, ui_path)
 
 
