@@ -126,7 +126,7 @@ def RequestHandlerClassFactory(address, interface):
             mode = fields[FORM_MODE][0]
             ipaddress = None
             netmask = None
-            gateway = None
+            gateway = ''
             if FORM_IP_ADDRESS in fields: 
                 ipaddress = fields[FORM_IP_ADDRESS][0]
             if FORM_NETMASK in fields: 
