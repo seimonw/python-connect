@@ -16,6 +16,7 @@ ADDRESS = ''
 PORT = 443
 UI_PATH = '../ui'
 CERTFILE_PATH = "../lighttpd.pem"
+MQTT_BROKER = "mosquitto"
 
 key = ''
 ipsettings = None
@@ -159,7 +160,7 @@ def RequestHandlerClassFactory(address, interface, mqttclient):
 
 #------------------------------------------------------------------------------
 # Create the hotspot, start dnsmasq, start the HTTP server.
-def main(interface, address, port, ui_path):
+def main(interface, address, port, ui_path, mqtt_broker):
 
     global key
     global ipsettings
@@ -184,9 +185,8 @@ def main(interface, address, port, ui_path):
 
     mqttclient = mqtt.Client("P1")
     mqttclient.loop_start()
-#    mqttclient.connect("mosquitto")
     try:
-        mqttclient.connect("127.0.0.1")
+        mqttclient.connect(mqtt_broker)
     except:
         print("mqtt error")
 
@@ -225,6 +225,7 @@ if __name__ == "__main__":
     address = ADDRESS
     port = PORT
     ui_path = UI_PATH
+    mqtt_broker = MQTT_BROKER
     simulate = False
     delete_connections = False
 
@@ -234,6 +235,7 @@ f'  -i <Interface name>          Default: {interface} \n'\
 f'  -a <HTTP server address>     Default: {address} \n'\
 f'  -p <HTTP server port>        Default: {port} \n'\
 f'  -u <UI directory to serve>   Default: "{ui_path}" \n'\
+f'  -q <MQTT broker>             Default: "{mqtt_broker}" \n'\
 f'  -h Show help.\n'
 
     try:
@@ -259,10 +261,14 @@ f'  -h Show help.\n'
         elif opt in ("-u"):
             ui_path = arg
 
+        elif opt in ("-q"):
+            mqtt_broker = arg
+
     print(f'Inferface={interface}')
     print(f'Address={address}')
     print(f'Port={port}')
     print(f'UI path={ui_path}')
-    main(interface, address, port, ui_path)
+    print(f'MQTT broker={mqtt_broker}')
+    main(interface, address, port, ui_path, mqtt_broker)
 
 
