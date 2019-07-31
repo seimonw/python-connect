@@ -144,7 +144,7 @@ def RequestHandlerClassFactory(address, interface, mqttclient):
             if success:
                 response.write(b'OK\n')
                 ipsettings = netman.get_ethernet_settings(interface)
-                mqttClient.publish("ip-changed")
+                self.mqttClient.publish("ip-changed")
             else:
                 response.write(b'ERROR\n')
             self.wfile.write(response.getvalue())
