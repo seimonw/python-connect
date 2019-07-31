@@ -1,6 +1,7 @@
 # Our main wifi-connect application, which is based around an HTTP server.
 
 import os, getopt, sys, json, atexit, base64, ssl
+import paho.mqtt.client as mqtt
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 from urllib.parse import parse_qs
 from io import BytesIO
@@ -37,7 +38,7 @@ class MyHTTPServer(HTTPServer):
 # A custom http request handler class factory.
 # Handle the GET and POST requests from the UI form and JS.
 # The class factory allows us to pass custom arguments to the handler.
-def RequestHandlerClassFactory(address, interface):
+def RequestHandlerClassFactory(address, interface, mqttclient):
 
     class MyHTTPReqHandler(SimpleHTTPRequestHandler):
 
@@ -46,6 +47,7 @@ def RequestHandlerClassFactory(address, interface):
             # our super class will call do_GET().
             self.address = address
             self.interface = interface
+            self.mqttClient = mqttclient
             super(MyHTTPReqHandler, self).__init__(*args, **kwargs)
 
 
@@ -141,6 +143,7 @@ def RequestHandlerClassFactory(address, interface):
             if success:
                 response.write(b'OK\n')
                 ipsettings = netman.get_ethernet_settings(interface)
+                mqttClient.publish("ip-changed")
             else:
                 response.write(b'ERROR\n')
             self.wfile.write(response.getvalue())
@@ -179,12 +182,20 @@ def main(interface, address, port, ui_path):
     keystr = keystr[:7] + ':remsdaq'
     key = base64.b64encode(bytearray(keystr.encode('ascii')))
 
+    mqttclient = mqtt.Client("P1")
+    mqttclient.loop_start()
+#    mqttclient.connect("mosquitto")
+    try:
+        mqttclient.connect("127.0.0.1")
+    except:
+        print("mqtt error")
 
     ipsettings = netman.get_ethernet_settings(interface)
 
     # Custom request handler class (so we can pass in our own args)
-    MyRequestHandlerClass = RequestHandlerClassFactory(address, interface)
-    avahi = AvahiService("Sabre II BACnet Gateway", "_https._tcp", port)
+    MyRequestHandlerClass = RequestHandlerClassFactory(address, interface, mqttclient)
+    avahi = AvahiService(f"Sabre II BACnet Gateway {keystr[:7]}", "_workstation._tcp", 9)
+    avahi = AvahiService(f"Sabre II BACnet Gateway {keystr[:7]}", "_https._tcp", port)
 
     # Start an HTTP server to serve the content in the ui dir and handle the 
     # POST request in the handler class.
