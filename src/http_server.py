@@ -61,7 +61,7 @@ def RequestHandlerClassFactory(address, interface, mqttclient):
         def do_AUTHHEAD(self):
             print(f'do_AUTHHEAD {self.path}')
             self.send_response(401)
-            self.send_header("WWW-Authenticate", 'Basic realm=\"Sabre II BACnet Gateway\"')
+            self.send_header("WWW-Authenticate", 'Basic realm=\"Sabre II BACnet Interface\"')
             self.send_header('Content-type', 'text/html')
             self.end_headers()
 
@@ -194,8 +194,8 @@ def main(interface, address, port, ui_path, mqtt_broker):
 
     # Custom request handler class (so we can pass in our own args)
     MyRequestHandlerClass = RequestHandlerClassFactory(address, interface, mqttclient)
-    avahi = AvahiService(f"Sabre II BACnet Gateway {keystr[:7]}", "_workstation._tcp", 9)
-    avahi = AvahiService(f"Sabre II BACnet Gateway {keystr[:7]}", "_https._tcp", port)
+    avahi = AvahiService(f"Sabre II BACnet Interface {keystr[:7]}", "_workstation._tcp", 9)
+    avahi = AvahiService(f"Sabre II BACnet Interface {keystr[:7]}", "_https._tcp", port)
 
     # Start an HTTP server to serve the content in the ui dir and handle the 
     # POST request in the handler class.
